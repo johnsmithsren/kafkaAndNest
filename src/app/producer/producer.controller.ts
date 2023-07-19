@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ProducerService } from './producer.service';
-import { randomInt } from 'crypto';
+import { v4 } from 'uuid'
 
 @Controller()
 export class ProducerController {
@@ -11,14 +11,17 @@ export class ProducerController {
 
   @Get('/send')
   async send() {
-    for (let j = 0; j < 2; j++) {
-      let orderId = randomInt(10000000000);
-      let msgArray = ['create order', 'update order', 'finish order']
+    for (let j = 0; j < 10000; j++) {
+      let orderId = v4();
+      let msgArray = ['create', 'update', 'finish']
       for (let i = 0; i < 3; i++) {
-        this.producerService.send(orderId, `${orderId}:${msgArray[i]}`);
+        await this.producerService.send(
+          'order',
+          orderId,
+          { orderId: orderId, status: msgArray[i] }
+        );
       }
     }
-    // this.appService.checkBroker()
     return "send message success"
   }
 

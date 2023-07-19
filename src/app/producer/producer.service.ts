@@ -1,19 +1,19 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ServerKafka, Client, ClientKafka } from '@nestjs/microservices';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Kafka, Producer, Admin, CompressionTypes } from 'kafkajs';
 import { kafkaConfig } from 'src/kafkaConfig';
 
-const TOPICNAME = 'order'
 @Injectable()
 export class ProducerService implements OnModuleInit, OnModuleDestroy {
   private kafka: Kafka;
   private producer: Producer;
   private admin: Admin
+  private logger: Logger;
   constructor() {
     //@ts-ignore
     this.kafka = new Kafka({ ...kafkaConfig.options.client, ...kafkaConfig.options.consumer });
     this.producer = this.kafka.producer();
     this.admin = this.kafka.admin()
+    this.logger = new Logger(ProducerService.name)
 
   }
 
@@ -36,32 +36,27 @@ export class ProducerService implements OnModuleInit, OnModuleDestroy {
     await this.admin.disconnect()
   }
 
-  async send(orderId: number, msg: string) {
-    const partition = await this.getPartition(orderId);
-    const message = {
-      value: msg,
-      partition: partition,
-    };
-    const payload: any = {
+  async send(topic: string, uuid: number, msg) {
+    const partition = await this.getPartition(topic, uuid);
+    const message: any = {
       messageId: '' + new Date().valueOf(),
-      body: message,
-      messageType: 'Order',
-      topicName: 'order',
+      value: msg,
+      topicName: topic,
     };
-    const metadata = await this.producer
+    await this.producer
       .send({
-        topic: TOPICNAME,
-        messages: [{ value: JSON.stringify(payload), partition }],
+        topic: topic,
+        messages: [{ value: JSON.stringify(message), partition }],
         compression: CompressionTypes.GZIP
       })
-      .catch(e => console.error(e.message, e));
+      .catch(e => this.logger.error(e.message, e));
     return message;
   }
 
   // 计算订单号的哈希，并根据分区数取模得到分区号
-  async getPartition(orderId: number): Promise<number> {
-    const hash = this.hashCode(orderId.toString());
-    const partitionCount = await this.getPartitionNum(TOPICNAME)
+  async getPartition(topic: string, uuid: number): Promise<number> {
+    const hash = this.hashCode(uuid.toString());
+    const partitionCount = await this.getPartitionNum(topic)
     return Math.abs(hash % partitionCount);
   };
 
@@ -80,6 +75,9 @@ export class ProducerService implements OnModuleInit, OnModuleDestroy {
     const topicDescription = await this.admin.fetchTopicMetadata({
       topics: [topicName],
     });
+    if (topicDescription.topics.length == 0) {
+      throw "topic not found"
+    }
     return topicDescription.topics[0].partitions.length;
 
   }
