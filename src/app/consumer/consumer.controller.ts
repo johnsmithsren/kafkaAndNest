@@ -20,8 +20,14 @@ export class ConsumerController implements OnModuleInit {
     }
 
     @MessagePattern('userInfo')
+    async consumerUserInfo(payload: any) {
+        console.log(JSON.stringify(payload) + ' userInfo');
+        await this.consumerService.handleUserInfo(payload)
+    }
+
+    @MessagePattern('order')
     async consumerOrder(payload: any) {
-        console.log(JSON.stringify(payload) + ' created');
+        console.log(JSON.stringify(payload) + ' order');
         await this.consumerService.handleUserInfo(payload)
     }
 
