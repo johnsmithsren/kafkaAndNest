@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { OrderDocument } from './schemas/order.schemas';
 import { Model } from 'mongoose';
 import { OrderStatus } from '../constant';
+// 这里只是模拟订单处理，但是直接这么操作数据库并发量大的情况下是不是会崩溃
 @Injectable()
 export class ConsumerService {
   private readonly logger = new Logger(ConsumerService.name);

@@ -1,6 +1,6 @@
 import { Controller, Logger, OnModuleInit } from '@nestjs/common';
 import { Client, ClientKafka, Ctx, KafkaContext, MessagePattern, Payload, } from '@nestjs/microservices'
-import { kafkaConfig } from 'src/kafkaConfig';
+import { kafkaConfig } from 'src/app/kafka/kafka.config';
 import { ConsumerService } from './consumer.service';
 import { OrderStatus } from '../constant';
 
@@ -25,23 +25,25 @@ export class ConsumerController implements OnModuleInit {
     @MessagePattern('order')
     async consumerOrder(@Payload() payload, @Ctx() context: KafkaContext) {
         const partition = context.getPartition();
-        this.logger.log(JSON.stringify(payload) + ' order ' + partition);
         if (!payload) {
             return
         }
         const orderInfo = {
             uuid: payload.value.orderId,
-            status: payload.value.status
+            status: payload.value.status,
+            partition: partition
         }
-        switch (payload.status) {
+        const heartbeat = context.getHeartbeat();
+        await heartbeat();
+        switch (orderInfo.status) {
             case OrderStatus.Create:
-                this.consumerService.handleCreateOrder(orderInfo)
+                await this.consumerService.handleCreateOrder(orderInfo)
                 break;
             case OrderStatus.Update:
-                this.consumerService.handleUpdateOrder(orderInfo)
+                await this.consumerService.handleUpdateOrder(orderInfo)
                 break;
             case OrderStatus.Finish:
-                this.consumerService.handleFinishOrder(orderInfo)
+                await this.consumerService.handleFinishOrder(orderInfo)
                 break;
             default:
                 break;
