@@ -17,5 +17,8 @@ export const kafkaConfig: KafkaOptions = {
             groupId: 'producer',
             allowAutoTopicCreation: true,
         },
+        producer: {
+            allowAutoTopicCreation: true
+        }
     }
 };

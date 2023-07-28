@@ -3,11 +3,12 @@ import { AppModule } from './app.module';
 import { kafkaConfig } from './app/kafka/kafka.config';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import * as colors from 'colors';
 import 'winston-daily-rotate-file';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { GlobalExceptionFilter } from './app/exception/global.exception';
+import { WrapResponseInterceptor } from './app/interceptors/response.interceptor';
+import { TimeoutInterceptor } from './app/interceptors/timeout.interceptor';
 async function bootstrap() {
-  // const app = await NestFactory.createMicroservice(AppModule, kafkaConfig);
-  // await app.listen();
   const app = await NestFactory.create(AppModule,
     {
       logger: WinstonModule.createLogger({
@@ -44,6 +45,30 @@ async function bootstrap() {
         ],
       })
     })
+
+
+  // 跨域
+  app.enableCors({});
+  // 参数校验
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      forbidUnknownValues: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
+  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalInterceptors(
+    new WrapResponseInterceptor(),
+    new TimeoutInterceptor(),
+  );
+  app.enableVersioning({
+    type: VersioningType.URI,
+  });
   app.connectMicroservice(kafkaConfig);
   await app.startAllMicroservices();
   await app.listen(3000)
